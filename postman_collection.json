@@ -1,0 +1,99 @@
+{
+  "info": {
+    "name": "Log Classifier API — synthetic_logs.csv schema",
+    "description": "Two-stage log classification pipeline. All requests target localhost:8000.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Health Check",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8000/health",
+        "description": "Verify the pipeline is loaded and ready. Returns list of known labels."
+      },
+      "response": [{
+        "name": "200 OK",
+        "code": 200,
+        "body": "{\n  \"status\": \"ok\",\n  \"pipeline_ready\": true,\n  \"known_labels\": [\"Critical Error\",\"Error\",\"HTTP Status\",\"Resource Usage\",\"Security Alert\",\"System Notification\",\"User Action\"]\n}"
+      }]
+    },
+    {
+      "name": "2. Classify Single Log",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": "http://localhost:8000/classify",
+        "description": "Classify one log message. 'source' is optional.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"log_message\": \"nova.osapi_compute.wsgi.server [req-abc123] 10.11.10.1 \\\"GET /v2/servers/detail HTTP/1.1\\\" status: 200 len: 1893 time: 0.2675118\",\n  \"source\": \"ModernCRM\"\n}"
+        }
+      },
+      "response": [{
+        "name": "HTTP Status — regex",
+        "code": 200,
+        "body": "{\n  \"log_message\": \"nova.osapi_compute.wsgi.server ...\",\n  \"predicted_label\": \"HTTP Status\",\n  \"confidence_score\": 1.0,\n  \"method_used\": \"regex\",\n  \"training_status\": \"existing\",\n  \"source\": \"ModernCRM\",\n  \"timestamp\": \"2026-05-10T08:00:00+00:00\"\n}"
+      }]
+    },
+    {
+      "name": "3. Classify Batch (JSON)",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": "http://localhost:8000/classify/batch",
+        "description": "Classify multiple log messages in one request.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"messages\": [\n    {\"log_message\": \"nova.osapi_compute.wsgi.server [req-abc] 10.11.10.1 \\\"GET /v2 HTTP/1.1\\\" status: 200 len: 512\", \"source\": \"ModernCRM\"},\n    {\"log_message\": \"nova.compute.claims [req-def] Claiming instance 2 vcpus 1024 MB RAM\", \"source\": \"ModernHR\"},\n    {\"log_message\": \"Backup completed successfully.\", \"source\": \"BillingSystem\"},\n    {\"log_message\": \"User User685 logged out.\", \"source\": \"AnalyticsEngine\"},\n    {\"log_message\": \"Unauthorized access to data was attempted.\", \"source\": \"ThirdPartyAPI\"},\n    {\"log_message\": \"Boot process terminated unexpectedly due to kernel issue.\", \"source\": \"LegacyCRM\"},\n    {\"log_message\": \"Shard 6 replication task ended in failure.\", \"source\": \"BillingSystem\"},\n    {\"log_message\": \"Lead conversion failed for prospect ID 7842 due to missing contact information.\", \"source\": \"ModernCRM\"},\n    {\"log_message\": \"API endpoint getCustomerDetails is deprecated and will be removed in version 3.2.\", \"source\": \"ThirdPartyAPI\"}\n  ]\n}"
+        }
+      },
+      "response": [{
+        "name": "200 — all 9 labels covered",
+        "code": 200,
+        "body": "{\n  \"total\": 9,\n  \"classified\": 9,\n  \"unclassified\": 0,\n  \"results\": [\n    {\"predicted_label\": \"HTTP Status\",         \"method_used\": \"regex\"},\n    {\"predicted_label\": \"Resource Usage\",       \"method_used\": \"regex\"},\n    {\"predicted_label\": \"System Notification\",  \"method_used\": \"regex\"},\n    {\"predicted_label\": \"User Action\",          \"method_used\": \"regex\"},\n    {\"predicted_label\": \"Security Alert\",       \"method_used\": \"regex\"},\n    {\"predicted_label\": \"Critical Error\",       \"method_used\": \"svm\"},\n    {\"predicted_label\": \"Error\",                \"method_used\": \"regex\"},\n    {\"predicted_label\": \"Workflow Error\",       \"method_used\": \"llm\"},\n    {\"predicted_label\": \"Deprecation Warning\",  \"method_used\": \"llm\"}\n  ]\n}"
+      }]
+    },
+    {
+      "name": "4. Classify CSV Upload ★",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8000/classify/upload",
+        "description": "Upload a CSV file with synthetic_logs.csv schema. Required column: log_message. Optional: timestamp, source. Returns a JSON summary; download the enriched CSV from endpoint 5.",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "description": "Select your CSV file here (must have a log_message column)",
+              "src": "/path/to/your/synthetic_logs.csv"
+            }
+          ]
+        }
+      },
+      "response": [{
+        "name": "200 — Upload summary",
+        "code": 200,
+        "body": "{\n  \"total_rows\": 2410,\n  \"classified\": 2403,\n  \"unclassified\": 7,\n  \"label_distribution\": {\n    \"HTTP Status\": 1017,\n    \"Security Alert\": 371,\n    \"System Notification\": 356,\n    \"Error\": 177,\n    \"Resource Usage\": 177,\n    \"Critical Error\": 161,\n    \"User Action\": 144,\n    \"Workflow Error\": 4,\n    \"Deprecation Warning\": 3\n  },\n  \"method_distribution\": {\n    \"regex\": 1694,\n    \"svm\": 709,\n    \"llm\": 7\n  },\n  \"download_url\": \"/classify/export\"\n}"
+      }]
+    },
+    {
+      "name": "5. Download Classified CSV",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:8000/classify/export?limit=5000",
+          "query": [{"key": "limit", "value": "5000"}]
+        },
+        "description": "Download the enriched CSV from the last /classify/upload call. Columns: timestamp | source | log_message | predicted_label | confidence_score | method_used | training_status | classified_at"
+      },
+      "response": [{
+        "name": "200 — CSV file",
+        "code": 200,
+        "header": [{"key": "Content-Disposition", "value": "attachment; filename=classified_classifications.csv"}],
+        "body": "timestamp,source,log_message,predicted_label,confidence_score,method_used,training_status,classified_at\n2025-06-27 07:20:25,ModernCRM,nova.osapi_compute.wsgi.server ...,HTTP Status,1.0,regex,existing,2026-05-10T08:00:00+00:00\n..."
+      }]
+    }
+  ]
+}
