@@ -94,3 +94,10 @@ class BatchClassificationResponse(BaseModel):
     classified: int
     unclassified: int
     results: list[ClassificationResult]
+
+
+helper_functions = {
+    "REGEX_TIER_LABELS": REGEX_TIER_LABELS,
+    "BERT_TIER_LABELS": BERT_TIER_LABELS,
+    "LLM_TIER_LABELS": LLM_TIER_LABELS,
+}   
