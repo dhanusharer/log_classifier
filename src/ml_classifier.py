@@ -458,15 +458,3 @@ def build_ml_classifier(
     )
 
 
-
-
-
-def _keyword_score(message: str, keywords: list[str]) -> int:
-    return sum(1 for keyword in keywords if keyword in message) 
-def _normalise_label(self, label: str) -> str:
-        lower = label.strip().lower()
-        for valid_label in self._labels:
-            if valid_label.lower() == lower:
-                return valid_label
-        logger.warning("LLM returned invalid label %r; using Error fallback", label)
-        return "Error"
