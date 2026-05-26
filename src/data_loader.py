@@ -125,35 +125,3 @@ def save_classified_csv(df: pd.DataFrame, results: list, path: Path) -> Path:
 
 
 
-
-
-def save_classified_csv_streaming(df: pd.DataFrame, results: list, path: Path) -> Path:
-    """
-    Streaming version of save_classified_csv that writes rows one at a time.
-    Useful for very large inference files that may not fit in memory with results.
-    """
-    from datetime import datetime, timezone
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=[
-            "timestamp", "source", "log_message", "predicted_label",
-            "confidence_score", "method_used", "training_status", "classified_at"
-        ])
-        writer.writeheader()
-
-        for i, result in enumerate(results):
-            row = {
-                "timestamp"       : df.at[i, "timestamp"] if "timestamp" in df.columns else "",
-                "source"          : result.source or "",
-                "log_message"     : result.log_message,
-                "predicted_label" : result.predicted_label,
-                "confidence_score": round(result.confidence_score, 4),
-                "method_used"     : result.method_used.value,
-                "training_status" : result.training_status.value,
-                "classified_at"   : datetime.now(timezone.utc).isoformat(),
-            }
-            writer.writerow(row)
-
-    logger.info("Saved %d classified rows → %s", len(results), path)
-    return path
